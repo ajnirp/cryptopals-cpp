@@ -154,69 +154,105 @@ std::tuple<vec, char, int32_t> DecryptSingleByteXor(const vec& ciphertext) {
 	return {SingleByteXor(ciphertext, most_likely_key), most_likely_key, max_score};
 }
 
+// Accepts a plaintext and key as ASCII strings and encrypts the former with the latter in
+// repeating-key mode. Output is hex-encoded.
+// See https://cryptopals.com/sets/1/challenges/5 for an example.
+vec RepeatingKeyXor(const std::string& plaintext, const std::string& key) {
+	vec result;
+	result.reserve(plaintext.size() * 2); // 1 byte is 2 hex digits.
+	int key_index = 0;
+	for (char c : plaintext) {
+		char byte = c ^ key[key_index];
+		key_index = (key_index + 1) % key.size();
+		result.push_back(ByteToHexDigit(byte >> 4));
+		result.push_back(ByteToHexDigit(byte & 0xf));
+	}
+	return result;
+}
+
 int main() {
-	std::vector<std::tuple<std::string, std::string>> testcases1 = {
-		{"4d616e", "TWFu"}, // hex-encoding of "Man"
-		{"4d61", "TWE"}, // hex-encoding of "Ma"
-		{"4d", "TQ"}, // hex-encoding of "M"
-		{
-			"49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d",
-		 	"SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t",
-		},
-	};
-	if (std::all_of(testcases1.cbegin(), testcases1.cend(), [](auto tuple) {
-		const vec input = StringToVec(std::get<0>(tuple));
-		const vec output = StringToVec(std::get<1>(tuple));
-		return IsEqualVec(HexVecToBase64Vec(input), output);
-	})) {
-		std::cout << "Base64 testcases passed." << std::endl;
-	}
-
-	std::vector<std::tuple<std::string, std::string, std::string>> testcases2 = {
-		{
-			"1c0111001f010100061a024b53535009181c",
-			"686974207468652062756c6c277320657965",
-			"746865206b696420646f6e277420706c6179",
-		},
-	};
-	if (std::all_of(testcases2.cbegin(), testcases2.cend(), [](auto tuple) {
-		const vec in0 = StringToVec(std::get<0>(tuple));
-		const vec in1 = StringToVec(std::get<1>(tuple));
-		const vec out = StringToVec(std::get<2>(tuple));
-		return IsEqualVec(FixedLengthXor(in0, in1), out);
-	})) {
-		std::cout << "Fixed-length XOR testcases passed." << std::endl;
-	}
-
-	std::vector<std::string> testcases3 = {
-		"1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736",
-	};
-	for (const std::string& s : testcases3) {
-		const vec in = StringToVec(s);
-		std::tuple<vec, char, int32_t> decryption = DecryptSingleByteXor(in);
-		const std::string plaintext = VecToString(std::get<0>(decryption));
-		int32_t score = std::get<2>(decryption);
-		std::cout << "Plaintext = " << plaintext << ". Key = " << std::get<1>(decryption) << ". Score = " << score << std::endl; 
-	}
-
-	std::ifstream ifs("single-character-xor.txt");
-	if (ifs) {
-		std::string line;
-		std::string true_ciphertext_string;
-		std::string true_plaintext;
-		int32_t max_score = 0;
-		while (!ifs.eof()) {
-			std::getline(ifs, line);
-			const vec ciphertext = StringToVec(line);
-			std::tuple<vec, char, int32_t> decryption = DecryptSingleByteXor(ciphertext);
-			int32_t score = std::get<2>(decryption);
-			if (score > max_score) {
-				max_score = score;
-				true_ciphertext_string = line;
-				true_plaintext = VecToString(std::get<0>(decryption));
-			}
+	// Challenge 1
+	{
+		std::vector<std::tuple<std::string, std::string>> testcases = {
+			{"4d616e", "TWFu"}, // hex-encoding of "Man"
+			{"4d61", "TWE"}, // hex-encoding of "Ma"
+			{"4d", "TQ"}, // hex-encoding of "M"
+			{
+				"49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d",
+			 	"SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t",
+			},
+		};
+		if (std::all_of(testcases.cbegin(), testcases.cend(), [](auto tuple) {
+			const vec input = StringToVec(std::get<0>(tuple));
+			const vec output = StringToVec(std::get<1>(tuple));
+			return IsEqualVec(HexVecToBase64Vec(input), output);
+		})) {
+			std::cout << "Base64 testcases passed." << std::endl;
 		}
-		std::cout << "Plaintext = " << true_plaintext << ". Ciphertext = " << true_ciphertext_string << ". " << std::endl;
+	}
+
+	// Challenge 2
+	{
+		std::vector<std::tuple<std::string, std::string, std::string>> testcases = {
+			{
+				"1c0111001f010100061a024b53535009181c",
+				"686974207468652062756c6c277320657965",
+				"746865206b696420646f6e277420706c6179",
+			},
+		};
+		if (std::all_of(testcases.cbegin(), testcases.cend(), [](auto tuple) {
+			const vec in0 = StringToVec(std::get<0>(tuple));
+			const vec in1 = StringToVec(std::get<1>(tuple));
+			const vec out = StringToVec(std::get<2>(tuple));
+			return IsEqualVec(FixedLengthXor(in0, in1), out);
+		})) {
+			std::cout << "Fixed-length XOR testcases passed." << std::endl;
+		}
+	}
+
+	// Challenge 3
+	{
+		std::vector<std::string> testcases = {
+			"1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736",
+		};
+		for (const std::string& s : testcases) {
+			const vec in = StringToVec(s);
+			std::tuple<vec, char, int32_t> decryption = DecryptSingleByteXor(in);
+			const std::string plaintext = VecToString(std::get<0>(decryption));
+			int32_t score = std::get<2>(decryption);
+			std::cout << "Plaintext = " << plaintext << ". Key = " << std::get<1>(decryption) << ". Score = " << score << std::endl; 
+		}
+	}
+
+	// Challenge 4
+	{
+		std::ifstream ifs("single-character-xor.txt");
+		if (ifs) {
+			std::string line;
+			std::string true_ciphertext_string;
+			std::string true_plaintext;
+			int32_t max_score = 0;
+			while (!ifs.eof()) {
+				std::getline(ifs, line);
+				const vec ciphertext = StringToVec(line);
+				std::tuple<vec, char, int32_t> decryption = DecryptSingleByteXor(ciphertext);
+				int32_t score = std::get<2>(decryption);
+				if (score > max_score) {
+					max_score = score;
+					true_ciphertext_string = line;
+					true_plaintext = VecToString(std::get<0>(decryption));
+				}
+			}
+			std::cout << "Plaintext = " << true_plaintext << ". Ciphertext = " << true_ciphertext_string << ". " << std::endl;
+		}
+	}
+
+	// Challenge 5
+	{
+		std::string testcase = "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal";
+		if (VecToString(RepeatingKeyXor(testcase, "ICE")) == "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f") {
+			std::cout << "Repeating-key XOR testcase passed." << std::endl;
+		}
 	}
 
 	return 0;
